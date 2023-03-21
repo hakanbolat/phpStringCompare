@@ -69,7 +69,7 @@ class StringPercentCompare
             $this->_remove_html_tags = $params['remove_html_tags'];
         }
         if (!empty($params['remove_extra_spaces'])) {
-            $this->_remove_extra_spaces = $params['remove_html_tags'];
+            $this->_remove_extra_spaces = $params['remove_extra_spaces'];
         }
         if (!empty($params['remove_punctuation'])) {
             $this->_remove_punctuation = $params['remove_punctuation'];
