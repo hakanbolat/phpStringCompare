@@ -1,0 +1,29 @@
+{
+    "name": "textcomparison/string-percent-compare",
+    "description": "A PHP class for comparing two strings and calculating their similarity percentage",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Hakan BOLAT",
+            "email": "hakan_bolatt@hotmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TextComparison\\": "./"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TextComparison\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable"
+} 

@@ -1,162 +1,277 @@
 <?php
 
+namespace TextComparison;
+
+/**
+ * StringPercentCompare - A class to compare two strings and calculate similarity percentage
+ */
 class StringPercentCompare
 {
-    private $_string1 = '';
-    private $_string2 = '';
-    private $_words1_count;
-    private $_words2_count;
-    private $_percent = null;
-    private $_debug = false;
+    private string $string1 = '';
+    private string $string2 = '';
+    private int $wordsCount1;
+    private int $wordsCount2;
+    private ?float $percent = null;
+    private bool $debug = false;
 
-    private $_remove_extra_spaces = false;
-    private $_remove_punctuation = false;
-    private $_remove_html_tags = false;
-    private $_remove_unnecessary = false;
-    private $_remove_non_alphanumeric = false;
-    private $_convert_language = false;
-    private $_convert_word = false;
+    // Text processing options
+    private bool $removeExtraSpaces = false;
+    private bool $removePunctuation = false;
+    private bool $removeHtmlTags = false;
+    private bool $removeUnnecessary = false;
+    private bool $removeNonAlphanumeric = false;
+    private bool $convertLanguage = false;
+    private bool $convertWord = false;
 
-    private $_punctuation_symbols = array('.', ',', '/', '-', '$', '*', ':', ';', '!', '?', '|', '\\', '_', '<', '>', '#', '~', '"', '\'', '^', '(', ')', '=', '+');
-    private $_unnecessary_words = array('akilli telefon', 'tasinabilir bilgisayar', 'notebook', 'cep telefonu');
-    private $_non_alphanumeric_reg = '~[^a-zA-Z0-9.]~';
+    // Configuration arrays
+    private array $punctuationSymbols = ['.', ',', '/', '-', '$', '*', ':', ';', '!', '?', '|', '\\', '_', '<', '>', '#', '~', '"', '\'', '^', '(', ')', '=', '+'];
+    private array $unnecessaryWords = ['akilli telefon', 'tasinabilir bilgisayar', 'notebook', 'cep telefonu'];
+    private string $nonAlphanumericRegex = '~[^a-zA-Z0-9.]~';
 
-    private $_convert_word1 = array('rose gold', 'gold', 'silver', 'space grey', 'space gray', 'jet black', 'jetblack', 'mate black', 'black', 'uzay grisi', 'ultra hd', 'full hd', 'wi-fi', '"', '4 gb', '8 gb', '16 gb', '32 gb', '64 gb', '128 gb', '256 gb', 'gaming');
-    private $_convert_word2 = array('roze altın', 'altin', 'gumus', 'uzay gri', 'uzay gri', 'simsiyah', 'simsiyah', 'matsiyah', 'siyah', 'uzay gri', 'uhd', 'fhd', 'wifi', 'inc', '4gb', '8gb', '16gb', '32gb', '64gb', '128gb', '256gb', 'oyuncu');
+    private array $convertWordFrom = ['rose gold', 'gold', 'silver', 'space grey', 'space gray', 'jet black', 'jetblack', 'mate black', 'black', 'uzay grisi', 'ultra hd', 'full hd', 'wi-fi', '"', '4 gb', '8 gb', '16 gb', '32 gb', '64 gb', '128 gb', '256 gb', 'gaming'];
+    private array $convertWordTo = ['roze altın', 'altin', 'gumus', 'uzay gri', 'uzay gri', 'simsiyah', 'simsiyah', 'matsiyah', 'siyah', 'uzay gri', 'uhd', 'fhd', 'wifi', 'inc', '4gb', '8gb', '16gb', '32gb', '64gb', '128gb', '256gb', 'oyuncu'];
 
-    public function __construct($str1, $str2, $params = array())
+    /**
+     * Constructor
+     *
+     * @param string $str1 First string to compare
+     * @param string $str2 Second string to compare
+     * @param array $params Configuration parameters
+     */
+    public function __construct(string $str1, string $str2, array $params = [])
     {
         $this->setParameters($params);
         $this->initializeStrings($str1, $str2);
 
-        if ($this->_debug) {
-            $this->printDebug($this->_string1);
-            $this->printDebug($this->_string2);
+        if ($this->debug) {
+            $this->printDebug($this->string1);
+            $this->printDebug($this->string2);
         }
     }
 
-    private function setParameters($params)
+    /**
+     * Set configuration parameters
+     *
+     * @param array $params Configuration parameters
+     * @return void
+     */
+    private function setParameters(array $params): void
     {
-        $this->_debug = !empty($params['debug']);
-        $this->_remove_html_tags = !empty($params['remove_html_tags']);
-        $this->_remove_extra_spaces = !empty($params['remove_extra_spaces']);
-        $this->_remove_punctuation = !empty($params['remove_punctuation']);
-        $this->_punctuation_symbols = !empty($params['punctuation_symbols']) ? $params['punctuation_symbols'] : $this->_punctuation_symbols;
-        $this->_remove_unnecessary = !empty($params['unnecessary_words']) ? $params['unnecessary_words'] : $this->_remove_unnecessary;
-        $this->_convert_language = !empty($params['convert_language']);
-        $this->_remove_non_alphanumeric = !empty($params['non_alphanumeric']);
-        $this->_convert_word = !empty($params['convert_word']);
+        $this->debug = !empty($params['debug']);
+        $this->removeHtmlTags = !empty($params['remove_html_tags']);
+        $this->removeExtraSpaces = !empty($params['remove_extra_spaces']);
+        $this->removePunctuation = !empty($params['remove_punctuation']);
+        
+        if (!empty($params['punctuation_symbols'])) {
+            $this->punctuationSymbols = $params['punctuation_symbols'];
+        }
+        
+        if (!empty($params['unnecessary_words'])) {
+            $this->removeUnnecessary = true;
+            $this->unnecessaryWords = $params['unnecessary_words'];
+        } else {
+            $this->removeUnnecessary = !empty($params['remove_unnecessary']);
+        }
+        
+        $this->convertLanguage = !empty($params['convert_language']);
+        $this->removeNonAlphanumeric = !empty($params['non_alphanumeric']);
+        $this->convertWord = !empty($params['convert_word']);
     }
 
-    private function initializeStrings($str1, $str2)
+    /**
+     * Initialize and preprocess the input strings
+     *
+     * @param string $str1 First string
+     * @param string $str2 Second string
+     * @return void
+     */
+    private function initializeStrings(string $str1, string $str2): void
     {
         $str1 = strtolower($str1);
         $str2 = strtolower($str2);
 
-        if ($this->_remove_html_tags) {
+        if ($this->removeHtmlTags) {
             $str1 = strip_tags($str1);
             $str2 = strip_tags($str2);
         }
-        if ($this->_remove_punctuation && count($this->_punctuation_symbols)) {
-            $str1 = str_replace($this->_punctuation_symbols, '', $str1);
-            $str2 = str_replace($this->_punctuation_symbols, '', $str2);
+        
+        if ($this->removePunctuation && !empty($this->punctuationSymbols)) {
+            $str1 = str_replace($this->punctuationSymbols, '', $str1);
+            $str2 = str_replace($this->punctuationSymbols, '', $str2);
         }
-        if ($this->_remove_unnecessary && count($this->_unnecessary_words)) {
-            $str1 = str_replace($this->_unnecessary_words, '', $str1);
-            $str2 = str_replace($this->_unnecessary_words, '', $str2);
+        
+        if ($this->removeUnnecessary && !empty($this->unnecessaryWords)) {
+            $str1 = str_replace($this->unnecessaryWords, '', $str1);
+            $str2 = str_replace($this->unnecessaryWords, '', $str2);
         }
-        if ($this->_convert_language) {
+        
+        if ($this->convertLanguage) {
             $str1 = iconv('utf-8', 'ascii//TRANSLIT', $str1);
             $str2 = iconv('utf-8', 'ascii//TRANSLIT', $str2);
         }
-        if ($this->_convert_word) {
-            $str1 = str_replace($this->_convert_word1, $this->_convert_word2, $str1);
-            $str2 = str_replace($this->_convert_word1, $this->_convert_word2, $str2);
+        
+        if ($this->convertWord) {
+            $str1 = str_replace($this->convertWordFrom, $this->convertWordTo, $str1);
+            $str2 = str_replace($this->convertWordFrom, $this->convertWordTo, $str2);
         }
-        if ($this->_remove_non_alphanumeric) {
-            $str1 = preg_replace($this->_non_alphanumeric_reg, ' ', $str1);
-            $str2 = preg_replace($this->_non_alphanumeric_reg, ' ', $str2);
+        
+        if ($this->removeNonAlphanumeric) {
+            $str1 = preg_replace($this->nonAlphanumericRegex, ' ', $str1);
+            $str2 = preg_replace($this->nonAlphanumericRegex, ' ', $str2);
         }
-        if ($this->_remove_extra_spaces) {
+        
+        if ($this->removeExtraSpaces) {
             $str1 = preg_replace('#\s+#u', ' ', $str1);
             $str2 = preg_replace('#\s+#u', ' ', $str2);
         }
 
-        $this->_string1 = trim($str1);
-        $this->_string2 = trim($str2);
+        $this->string1 = trim($str1);
+        $this->string2 = trim($str2);
 
-        $this->_words1_count = $this->getWordCount($str1);
-        $this->_words2_count = $this->getWordCount($str2);
+        $this->wordsCount1 = $this->getWordCount($str1);
+        $this->wordsCount2 = $this->getWordCount($str2);
     }
 
-    private function getWordCount($str)
+    /**
+     * Count words in a string
+     *
+     * @param string $str Input string
+     * @return int Number of words
+     */
+    private function getWordCount(string $str): int
     {
-        return count(array_values(array_filter(explode(' ', $str), function ($value) {
+        return count(array_filter(explode(' ', $str), function ($value) {
             return $value !== '';
-        })));
+        }));
     }
 
+    /**
+     * Process the comparison between strings
+     *
+     * @return $this|bool Returns $this on success, false if already processed
+     */
     public function process()
     {
-        if (!is_null($this->_percent)) {
+        if ($this->percent !== null) {
             return false;
         }
 
-        $str1 = $this->_string1;
-        $str2 = $this->_string2;
-        $str2 = explode(' ', $str2);
-        array_multisort(array_map('strlen', $str2), $str2);
-        $str2 = array_reverse($str2);
-        $str2 = array_values(array_filter($str2, function ($value) {
+        $str1 = $this->string1;
+        $str2Words = explode(' ', $this->string2);
+        
+        // Sort words by length (longest first)
+        array_multisort(array_map('strlen', $str2Words), SORT_DESC, $str2Words);
+        
+        // Filter out empty values
+        $str2Words = array_values(array_filter($str2Words, function ($value) {
             return $value !== '';
         }));
 
-        // Regex to try match
+        // Build regex pattern
+        $regex = $this->buildRegexPattern($str1, $str2Words);
+        
+        if ($this->debug) {
+            $this->printDebug($regex);
+        }
+        
+        // Find matching words
+        $wordsFound = $this->findMatchingWords($str1, $regex);
+        $wordsFoundCount = strlen($wordsFound);
+
+        // Calculate percentage
+        $percent = ($wordsFoundCount) / ($this->wordsCount1) * 100;
+        
+        // Adjust percentage if word counts differ but match is 100%
+        if ($this->wordsCount1 != $this->wordsCount2 && (int) $percent == 100) {
+            $percent -= 5;
+        }
+
+        $this->percent = (float) number_format($percent, 2, '.', '');
+        return $this;
+    }
+
+    /**
+     * Build regex pattern for word matching
+     *
+     * @param string $str1 First string
+     * @param array $str2Words Words from second string
+     * @return string Regex pattern
+     */
+    private function buildRegexPattern(string $str1, array $str2Words): string
+    {
+        // Start regex pattern
         $regex = '~(\\b';
 
         // Add each word to regex
-        for ($i = 0; $i < $this->_words2_count; $i++) {
-            $regex .= $str2[$i] . ' ' . ($i != ($this->_words2_count - 1) ? '|\\b' : '');
-            //$regex .= $str2[$i] . ($i != ($this->_words2_count - 1) ? '|' : '');
+        for ($i = 0; $i < $this->wordsCount2; $i++) {
+            $regex .= $str2Words[$i] . ' ' . ($i != ($this->wordsCount2 - 1) ? '|\\b' : '');
         }
 
         // Finish regex, case insensitive
         $regex .= ')~i';
-        //birinci stringin son kelimesi regex içerisinde varsa boşluk karakterini sil
-        if (is_numeric(strpos($regex, ('|' . substr($str1, (strrpos($str1, ' ', -1) + 1)))))) {
-            $searchString = '|' . substr($str1, (strrpos($str1, ' ', -1) + 1)) . ' ';
-            $replaceString = '|' . substr($str1, (strrpos($str1, ' ', -1) + 1));
+
+        // Handle special case for last word in first string
+        $lastWord = substr($str1, (strrpos($str1, ' ', -1) + 1));
+        if (strpos($regex, ('|' . $lastWord . ' ')) !== false) {
+            $searchString = '|' . $lastWord . ' ';
+            $replaceString = '|' . $lastWord;
             $regex = str_replace($searchString, $replaceString, $regex);
         }
-        if ($this->_debug)
-            $this->printDebug($regex);
-        $wordsFound = preg_replace($regex, '- ', $str1 . ' ');
-        if ($this->_debug)
-            $this->printDebug($wordsFound);
-        $wordsFound = preg_replace('[- ]', '*', $wordsFound);
-        if ($this->_debug)
-            $this->printDebug($wordsFound);
-        $wordsFound = preg_replace('~[^*]~', '', $wordsFound);
-        if ($this->_debug)
-            $this->printDebug($wordsFound);
-        $wordsFoundCount = strlen($wordsFound);
 
-        $percent = ($wordsFoundCount) / ($this->_words1_count) * 100;
-        if ($this->_words1_count != $this->_words2_count && (int) $percent == 100) {
-            $percent = $percent - 5;
-        }
-
-        $this->_percent = number_format($percent, 2, '.', '');
-        return $this;
+        return $regex;
     }
 
-    public function getSimilarityPercentage()
+    /**
+     * Find matching words using regex
+     *
+     * @param string $str1 First string
+     * @param string $regex Regex pattern
+     * @return string String with only matching characters
+     */
+    private function findMatchingWords(string $str1, string $regex): string
+    {
+        // Replace matched words with placeholder
+        $wordsFound = preg_replace($regex, '- ', $str1 . ' ');
+        
+        if ($this->debug) {
+            $this->printDebug($wordsFound);
+        }
+        
+        // Convert placeholders to asterisks
+        $wordsFound = preg_replace('[- ]', '*', $wordsFound);
+        
+        if ($this->debug) {
+            $this->printDebug($wordsFound);
+        }
+        
+        // Keep only asterisks
+        $wordsFound = preg_replace('~[^*]~', '', $wordsFound);
+        
+        if ($this->debug) {
+            $this->printDebug($wordsFound);
+        }
+        
+        return $wordsFound;
+    }
+
+    /**
+     * Get the similarity percentage between strings
+     *
+     * @return float Similarity percentage
+     */
+    public function getSimilarityPercentage(): float
     {
         $this->process();
-        return (float) $this->_percent;
+        return $this->percent;
     }
 
-    public function printDebug($data)
+    /**
+     * Print debug information
+     *
+     * @param mixed $data Data to print
+     * @return void
+     */
+    public function printDebug($data): void
     {
         if (is_array($data) || is_object($data)) {
             echo json_encode($data) . PHP_EOL;
